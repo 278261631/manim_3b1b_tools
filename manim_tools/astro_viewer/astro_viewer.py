@@ -279,14 +279,14 @@ class AstroViewerFITS(AstroViewer3D):
     """View FITS file data"""
     data_source = "../test-img/galaxies.fits"
     num_points = -1
-    brightness_threshold = 0.7
+    brightness_threshold = 0.8
 
 
 class AstroViewerSDSS(AstroViewer3D):
     """View SDSS image"""
     data_source = "../test-img/sdss.jpg"
     num_points = -1
-    brightness_threshold = 0.5
+    brightness_threshold = 0.8
 
 
 class AstroViewerM44(AstroViewer3D):
