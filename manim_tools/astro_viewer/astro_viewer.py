@@ -107,41 +107,42 @@ class AstroViewer3D(InteractiveScene):
         z_axis = Arrow(start=np.array([0, 0, -0.5]), end=np.array([0, 0, 4.5]),
                        color=BLUE, stroke_width=4)
 
-        # Axis labels
-        x_label = Text("X", color=RED, font_size=36).move_to([img_w*1.1, 0, 0])
-        y_label = Text("Y", color=GREEN, font_size=36).move_to([0, img_h*1.1, 0])
-        z_label = Text("Brightness", color=BLUE, font_size=28).move_to([0, 0, 5])
-
         # Create tick marks and labels (every 1/4 of image size)
         ticks = Group()
-        tick_labels = VGroup()
+        tick_labels = Group()
         tick_size = img_w * 0.01  # Tick size proportional to image
+        label_size = max(img_w, img_h) * 0.03  # Label font size proportional to image
 
         for i in range(5):
             x_pos = i * img_w / 4
             # X axis ticks
             x_tick = Line3D(start=np.array([x_pos, -tick_size, 0]), end=np.array([x_pos, tick_size, 0]), color=RED)
             ticks.add(x_tick)
-            x_num = Text(str(int(x_pos)), font_size=20, color=RED)
-            x_num.move_to([x_pos, -tick_size*4, 0])
-            tick_labels.add(x_num)
+            # X axis labels
+            x_label = Integer(int(x_pos), color=RED)
+            x_label.scale(label_size)
+            x_label.move_to([x_pos, -tick_size*5, 0])
+            tick_labels.add(x_label)
 
         for i in range(5):
             y_pos = i * img_h / 4
             # Y axis ticks
             y_tick = Line3D(start=np.array([-tick_size, y_pos, 0]), end=np.array([tick_size, y_pos, 0]), color=GREEN)
             ticks.add(y_tick)
-            y_num = Text(str(int(y_pos)), font_size=20, color=GREEN)
-            y_num.move_to([-tick_size*4, y_pos, 0])
-            tick_labels.add(y_num)
+            # Y axis labels
+            y_label = Integer(int(y_pos), color=GREEN)
+            y_label.scale(label_size)
+            y_label.move_to([-tick_size*5, y_pos, 0])
+            tick_labels.add(y_label)
 
         # Z axis ticks (0-4 for brightness)
         for i in range(1, 5):
             z_tick = Line3D(start=np.array([-tick_size, 0, i]), end=np.array([tick_size, 0, i]), color=BLUE)
             ticks.add(z_tick)
-            z_num = Text(str(i), font_size=20, color=BLUE)
-            z_num.move_to([-tick_size*4, 0, i])
-            tick_labels.add(z_num)
+            z_label = Integer(i, color=BLUE)
+            z_label.scale(label_size)
+            z_label.move_to([-tick_size*5, 0, i])
+            tick_labels.add(z_label)
 
         # Create 3D points from loaded data
         dot_radius = max(img_w, img_h) * 0.005  # Dot size proportional to image
@@ -159,25 +160,21 @@ class AstroViewer3D(InteractiveScene):
         self.points_data = points_data
         self.img_size = (img_w, img_h)
 
-        # Info text
-        source_name = os.path.basename(self.data_source)
-        info_text = Text(f"Source: {source_name} | Size: {img_w}x{img_h} | Points: {len(points_data)}",
-                        font_size=24, color=WHITE)
-        info_text.to_corner(UL)
-        info_text.fix_in_frame()
-
         # Set camera to view the entire image
         frame = self.camera.frame
         frame.set_euler_angles(theta=45 * DEGREES, phi=70 * DEGREES)
         frame.move_to([img_w/2, img_h/2, 0])  # Center camera on image
         frame.set_height(max(img_w, img_h) * 1.5)  # Zoom out to fit image
-        
+
         # Add to scene
         self.add(x_axis, y_axis, z_axis)
-        self.add(x_label, y_label, z_label)
-        self.add(ticks, tick_labels)
+        self.add(ticks)
+        self.add(tick_labels)
         self.add(dots)
-        self.add(info_text)
+
+        # Print info to console instead of displaying on screen
+        source_name = os.path.basename(self.data_source)
+        print(f"[Info] Source: {source_name} | Size: {img_w}x{img_h} | Points: {len(points_data)}")
         
         # Store selected dot for highlight effect
         self.selected_dot = None
