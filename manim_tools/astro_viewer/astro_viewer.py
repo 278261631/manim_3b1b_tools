@@ -26,18 +26,18 @@ def load_from_image(image_path, num_points=50, brightness_threshold=0.7):
         x_coords = x_coords[indices]
         y_coords = y_coords[indices]
     
-    # Normalize coordinates to [0, 8] range, origin at image (0,0)
+    # Use actual pixel coordinates, origin at image (0,0)
     h, w = img_array.shape[:2]
-    x_norm = (x_coords / w) * 8        # [0, 8]
-    y_norm = (1 - y_coords / h) * 8    # [0, 8], Y flipped (image top = high Y)
+    x_norm = x_coords.astype(float)           # [0, w]
+    y_norm = (h - y_coords).astype(float)     # [0, h], Y flipped (image top = high Y)
     
     # Use brightness as Z coordinate
     z_coords = np.array([brightness[y, x] * 4 for x, y in zip(x_coords, y_coords)])
     
     # Get colors from image
     colors = [img_array[y, x] / 255.0 for x, y in zip(x_coords, y_coords)]
-    
-    return list(zip(x_norm, y_norm, z_coords, colors))
+
+    return list(zip(x_norm, y_norm, z_coords, colors)), (w, h)
 
 
 def load_from_fits(fits_path, num_points=50, brightness_threshold=0.7):
@@ -67,10 +67,10 @@ def load_from_fits(fits_path, num_points=50, brightness_threshold=0.7):
         x_coords = x_coords[indices]
         y_coords = y_coords[indices]
     
-    # Normalize coordinates to [0, 8] range, origin at image (0,0)
+    # Use actual pixel coordinates, origin at image (0,0)
     h, w = data.shape
-    x_norm = (x_coords / w) * 8        # [0, 8]
-    y_norm = (1 - y_coords / h) * 8    # [0, 8], Y flipped
+    x_norm = x_coords.astype(float)           # [0, w]
+    y_norm = (h - y_coords).astype(float)     # [0, h], Y flipped
     z_coords = np.array([data_norm[y, x] * 4 for x, y in zip(x_coords, y_coords)])
     
     # Color based on intensity (blue to white)
@@ -78,8 +78,8 @@ def load_from_fits(fits_path, num_points=50, brightness_threshold=0.7):
     for x, y in zip(x_coords, y_coords):
         intensity = data_norm[y, x]
         colors.append([intensity, intensity, 1.0])  # Blue to white
-    
-    return list(zip(x_norm, y_norm, z_coords, colors))
+
+    return list(zip(x_norm, y_norm, z_coords, colors)), (w, h)
 
 
 class AstroViewer3D(InteractiveScene):
@@ -91,58 +91,64 @@ class AstroViewer3D(InteractiveScene):
     def construct(self):
         # Load data based on file type
         if self.data_source.endswith('.fits'):
-            points_data = load_from_fits(
+            points_data, (img_w, img_h) = load_from_fits(
                 self.data_source, self.num_points, self.brightness_threshold
             )
         else:
-            points_data = load_from_image(
+            points_data, (img_w, img_h) = load_from_image(
                 self.data_source, self.num_points, self.brightness_threshold
             )
-        
-        # Create axes (origin at 0,0,0 corresponding to image 0,0)
-        x_axis = Arrow(start=np.array([-0.5, 0, 0]), end=np.array([8.5, 0, 0]),
+
+        # Create axes based on actual image size
+        x_axis = Arrow(start=np.array([-img_w*0.05, 0, 0]), end=np.array([img_w*1.05, 0, 0]),
                        color=RED, stroke_width=4)
-        y_axis = Arrow(start=np.array([0, -0.5, 0]), end=np.array([0, 8.5, 0]),
+        y_axis = Arrow(start=np.array([0, -img_h*0.05, 0]), end=np.array([0, img_h*1.05, 0]),
                        color=GREEN, stroke_width=4)
         z_axis = Arrow(start=np.array([0, 0, -0.5]), end=np.array([0, 0, 4.5]),
                        color=BLUE, stroke_width=4)
 
         # Axis labels
-        x_label = Text("X", color=RED, font_size=36).move_to([9, 0, 0])
-        y_label = Text("Y", color=GREEN, font_size=36).move_to([0, 9, 0])
+        x_label = Text("X", color=RED, font_size=36).move_to([img_w*1.1, 0, 0])
+        y_label = Text("Y", color=GREEN, font_size=36).move_to([0, img_h*1.1, 0])
         z_label = Text("Brightness", color=BLUE, font_size=28).move_to([0, 0, 5])
 
-        # Create tick marks and labels
+        # Create tick marks and labels (every 1/4 of image size)
         ticks = Group()
         tick_labels = VGroup()
-        for i in range(0, 9):
+        tick_size = img_w * 0.01  # Tick size proportional to image
+
+        for i in range(5):
+            x_pos = i * img_w / 4
             # X axis ticks
-            x_tick = Line3D(start=np.array([i, -0.1, 0]), end=np.array([i, 0.1, 0]), color=RED)
+            x_tick = Line3D(start=np.array([x_pos, -tick_size, 0]), end=np.array([x_pos, tick_size, 0]), color=RED)
             ticks.add(x_tick)
-            x_num = Text(str(i), font_size=20, color=RED)
-            x_num.move_to([i, -0.4, 0])
+            x_num = Text(str(int(x_pos)), font_size=20, color=RED)
+            x_num.move_to([x_pos, -tick_size*4, 0])
             tick_labels.add(x_num)
 
+        for i in range(5):
+            y_pos = i * img_h / 4
             # Y axis ticks
-            y_tick = Line3D(start=np.array([-0.1, i, 0]), end=np.array([0.1, i, 0]), color=GREEN)
+            y_tick = Line3D(start=np.array([-tick_size, y_pos, 0]), end=np.array([tick_size, y_pos, 0]), color=GREEN)
             ticks.add(y_tick)
-            y_num = Text(str(i), font_size=20, color=GREEN)
-            y_num.move_to([-0.4, i, 0])
+            y_num = Text(str(int(y_pos)), font_size=20, color=GREEN)
+            y_num.move_to([-tick_size*4, y_pos, 0])
             tick_labels.add(y_num)
 
         # Z axis ticks (0-4 for brightness)
         for i in range(1, 5):
-            z_tick = Line3D(start=np.array([-0.1, 0, i]), end=np.array([0.1, 0, i]), color=BLUE)
+            z_tick = Line3D(start=np.array([-tick_size, 0, i]), end=np.array([tick_size, 0, i]), color=BLUE)
             ticks.add(z_tick)
             z_num = Text(str(i), font_size=20, color=BLUE)
-            z_num.move_to([-0.4, 0, i])
+            z_num.move_to([-tick_size*4, 0, i])
             tick_labels.add(z_num)
-        
+
         # Create 3D points from loaded data
+        dot_radius = max(img_w, img_h) * 0.005  # Dot size proportional to image
         dots = Group()
         for x, y, z, color in points_data:
             rgb_color = rgb_to_color(color[:3]) if len(color) >= 3 else WHITE
-            dot = Sphere(radius=0.08, color=rgb_color)
+            dot = Sphere(radius=dot_radius, color=rgb_color)
             dot.move_to([x, y, z])
             # Store coordinates as custom attribute for click detection
             dot.point_coords = (x, y, z)
@@ -151,17 +157,20 @@ class AstroViewer3D(InteractiveScene):
         # Store dots reference for click handler
         self.dots = dots
         self.points_data = points_data
-        
+        self.img_size = (img_w, img_h)
+
         # Info text
         source_name = os.path.basename(self.data_source)
-        info_text = Text(f"Source: {source_name} | Points: {len(points_data)}", 
+        info_text = Text(f"Source: {source_name} | Size: {img_w}x{img_h} | Points: {len(points_data)}",
                         font_size=24, color=WHITE)
         info_text.to_corner(UL)
         info_text.fix_in_frame()
-        
-        # Set camera
+
+        # Set camera to view the entire image
         frame = self.camera.frame
         frame.set_euler_angles(theta=45 * DEGREES, phi=70 * DEGREES)
+        frame.move_to([img_w/2, img_h/2, 0])  # Center camera on image
+        frame.set_height(max(img_w, img_h) * 1.5)  # Zoom out to fit image
         
         # Add to scene
         self.add(x_axis, y_axis, z_axis)
@@ -201,23 +210,24 @@ class AstroViewer3D(InteractiveScene):
         # Print nearest point coordinates and add glow effect
         if closest_dot is not None:
             coords = closest_dot.point_coords
-            print(f"[Point] X: {coords[0]:.3f}, Y: {coords[1]:.3f}, Z: {coords[2]:.3f} (dist: {min_dist:.2f})")
+            print(f"[Point] X: {coords[0]:.1f}, Y: {coords[1]:.1f}, Z: {coords[2]:.3f} (dist: {min_dist:.2f})")
 
             # Remove previous highlight
             if self.highlight_ring is not None:
                 self.remove(self.highlight_ring)
 
-            # Create glow effect - multiple rings
+            # Create glow effect - multiple rings (size proportional to image)
             self.highlight_ring = Group()
             center = closest_dot.get_center()
-            for i, r in enumerate([0.15, 0.22, 0.30]):
+            base_size = max(self.img_size) * 0.01
+            for i, r in enumerate([base_size, base_size*1.5, base_size*2]):
                 ring = Circle(radius=r, color=YELLOW, stroke_width=3-i)
                 ring.set_stroke(opacity=0.8-i*0.2)
                 ring.move_to(center)
                 self.highlight_ring.add(ring)
 
             # Add outer glow sphere
-            glow = Sphere(radius=0.18, color=YELLOW)
+            glow = Sphere(radius=base_size*1.2, color=YELLOW)
             glow.set_opacity(0.3)
             glow.move_to(center)
             self.highlight_ring.add(glow)
