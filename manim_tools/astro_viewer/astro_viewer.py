@@ -185,14 +185,17 @@ class AstroViewer3D(InteractiveScene):
         # Get mouse position in world coordinates
         mouse_point = self.mouse_point.get_center()
 
-        # Find closest point to click
+        # Get camera frame for proper 3D picking
+        frame = self.camera.frame
+
+        # Find closest point using camera-relative distance
         min_dist = float('inf')
         closest_dot = None
 
         for dot in self.dots:
             dot_center = dot.get_center()
-            dist = np.sqrt((mouse_point[0] - dot_center[0])**2 +
-                          (mouse_point[1] - dot_center[1])**2)
+            # Use full 3D distance
+            dist = np.linalg.norm(mouse_point - dot_center)
             if dist < min_dist:
                 min_dist = dist
                 closest_dot = dot
