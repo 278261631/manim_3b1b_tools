@@ -4,75 +4,76 @@ from PIL import Image
 import os
 
 # Data loader functions
-def load_from_image(image_path, num_points=50, brightness_threshold=0.7):
+def load_from_image(image_path, num_points=50, brightness_threshold=0.7, z_scale=1.0):
     """Extract bright points from an image as 3D coordinates"""
     img = Image.open(image_path).convert('RGB')
     img_array = np.array(img)
-    
-    # Calculate brightness (grayscale)
+
+    # Calculate brightness (grayscale) - normalized for threshold comparison
     brightness = np.mean(img_array, axis=2) / 255.0
-    
+
     # Find bright pixels above threshold
     bright_mask = brightness > brightness_threshold
     y_coords, x_coords = np.where(bright_mask)
-    
+
     if len(x_coords) == 0:
         # Lower threshold if no points found
         bright_mask = brightness > 0.5
         y_coords, x_coords = np.where(bright_mask)
-    
+
     if len(x_coords) > num_points:
         indices = np.random.choice(len(x_coords), num_points, replace=False)
         x_coords = x_coords[indices]
         y_coords = y_coords[indices]
-    
+
     # Use actual pixel coordinates, origin at image (0,0)
     h, w = img_array.shape[:2]
     x_norm = x_coords.astype(float)           # [0, w]
     y_norm = (h - y_coords).astype(float)     # [0, h], Y flipped (image top = high Y)
-    
-    # Use brightness as Z coordinate
-    z_coords = np.array([brightness[y, x] * 4 for x, y in zip(x_coords, y_coords)])
-    
+
+    # Use original brightness value (0-255) scaled by z_scale
+    z_coords = np.array([brightness[y, x] * 255 * z_scale for x, y in zip(x_coords, y_coords)])
+
     # Get colors from image
     colors = [img_array[y, x] / 255.0 for x, y in zip(x_coords, y_coords)]
 
     return list(zip(x_norm, y_norm, z_coords, colors)), (w, h)
 
 
-def load_from_fits(fits_path, num_points=50, brightness_threshold=0.7):
+def load_from_fits(fits_path, num_points=50, brightness_threshold=0.7, z_scale=1.0):
     """Extract bright points from a FITS file as 3D coordinates"""
     from astropy.io import fits
-    
+
     with fits.open(fits_path) as hdul:
         data = hdul[0].data.astype(float)
-    
+
     # Normalize data to [0, 1]
     data_min, data_max = np.nanmin(data), np.nanmax(data)
     if data_max > data_min:
         data_norm = (data - data_min) / (data_max - data_min)
     else:
         data_norm = np.zeros_like(data)
-    
+
     # Find bright pixels
     bright_mask = data_norm > brightness_threshold
     y_coords, x_coords = np.where(bright_mask)
-    
+
     if len(x_coords) == 0:
         bright_mask = data_norm > 0.5
         y_coords, x_coords = np.where(bright_mask)
-    
+
     if len(x_coords) > num_points:
         indices = np.random.choice(len(x_coords), num_points, replace=False)
         x_coords = x_coords[indices]
         y_coords = y_coords[indices]
-    
+
     # Use actual pixel coordinates, origin at image (0,0)
     h, w = data.shape
     x_norm = x_coords.astype(float)           # [0, w]
     y_norm = (h - y_coords).astype(float)     # [0, h], Y flipped
-    z_coords = np.array([data_norm[y, x] * 4 for x, y in zip(x_coords, y_coords)])
-    
+    # Use original brightness value (0-255) scaled by z_scale
+    z_coords = np.array([data_norm[y, x] * 255 * z_scale for x, y in zip(x_coords, y_coords)])
+
     # Color based on intensity (blue to white)
     colors = []
     for x, y in zip(x_coords, y_coords):
@@ -87,24 +88,28 @@ class AstroViewer3D(InteractiveScene):
     data_source = "../test-img/sdss.jpg"  # Can be .jpg, .png, or .fits
     num_points = 100
     brightness_threshold = 0.6
-    
+    z_scale = 1.0  # Z axis scale factor, 1.0 = original brightness value (0-255)
+
     def construct(self):
         # Load data based on file type
         if self.data_source.endswith('.fits'):
             points_data, (img_w, img_h) = load_from_fits(
-                self.data_source, self.num_points, self.brightness_threshold
+                self.data_source, self.num_points, self.brightness_threshold, self.z_scale
             )
         else:
             points_data, (img_w, img_h) = load_from_image(
-                self.data_source, self.num_points, self.brightness_threshold
+                self.data_source, self.num_points, self.brightness_threshold, self.z_scale
             )
+
+        # Calculate max Z value for axis
+        max_z = 255 * self.z_scale
 
         # Create axes based on actual image size
         x_axis = Arrow(start=np.array([-img_w*0.05, 0, 0]), end=np.array([img_w*1.05, 0, 0]),
                        color=RED, stroke_width=4)
         y_axis = Arrow(start=np.array([0, -img_h*0.05, 0]), end=np.array([0, img_h*1.05, 0]),
                        color=GREEN, stroke_width=4)
-        z_axis = Arrow(start=np.array([0, 0, -0.5]), end=np.array([0, 0, 4.5]),
+        z_axis = Arrow(start=np.array([0, 0, -max_z*0.05]), end=np.array([0, 0, max_z*1.05]),
                        color=BLUE, stroke_width=4)
 
         # Create tick marks and labels (every 1/4 of image size)
@@ -135,13 +140,14 @@ class AstroViewer3D(InteractiveScene):
             y_label.move_to([-tick_size*5, y_pos, 0])
             tick_labels.add(y_label)
 
-        # Z axis ticks (0-4 for brightness)
-        for i in range(1, 5):
-            z_tick = Line3D(start=np.array([-tick_size, 0, i]), end=np.array([tick_size, 0, i]), color=BLUE)
+        # Z axis ticks (0-255 scaled)
+        for i in range(5):
+            z_pos = i * max_z / 4
+            z_tick = Line3D(start=np.array([-tick_size, 0, z_pos]), end=np.array([tick_size, 0, z_pos]), color=BLUE)
             ticks.add(z_tick)
-            z_label = Integer(i, color=BLUE)
+            z_label = Integer(int(i * 255 / 4), color=BLUE)  # Show original brightness value
             z_label.scale(label_size)
-            z_label.move_to([-tick_size*5, 0, i])
+            z_label.move_to([-tick_size*5, 0, z_pos])
             tick_labels.add(z_label)
 
         # Create 3D points from loaded data
