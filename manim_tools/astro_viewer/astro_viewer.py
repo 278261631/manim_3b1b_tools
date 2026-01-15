@@ -11,6 +11,8 @@ def load_from_image(image_path, num_points=-1, brightness_threshold=-1, z_scale=
     """
     img = Image.open(image_path).convert('RGB')
     img_array = np.array(img)
+    h, w = img_array.shape[:2]
+    total_pixels = w * h
 
     # Calculate brightness (grayscale) - normalized for threshold comparison
     brightness = np.mean(img_array, axis=2) / 255.0
@@ -25,18 +27,25 @@ def load_from_image(image_path, num_points=-1, brightness_threshold=-1, z_scale=
             y_coords, x_coords = np.where(bright_mask)
     else:
         # No filter - get all pixels
-        h, w = img_array.shape[:2]
         y_coords, x_coords = np.mgrid[0:h, 0:w]
         y_coords = y_coords.flatten()
         x_coords = x_coords.flatten()
+
+    filtered_count = len(x_coords)
 
     if num_points > 0 and len(x_coords) > num_points:
         indices = np.random.choice(len(x_coords), num_points, replace=False)
         x_coords = x_coords[indices]
         y_coords = y_coords[indices]
 
+    final_count = len(x_coords)
+
+    # Print info
+    print(f"[Image] Size: {w}x{h}, Total pixels: {total_pixels}")
+    print(f"[Filter] brightness_threshold: {brightness_threshold}, num_points: {num_points}")
+    print(f"[Result] After filter: {filtered_count}, Final points: {final_count}")
+
     # Use actual pixel coordinates, origin at image (0,0)
-    h, w = img_array.shape[:2]
     x_norm = x_coords.astype(float)           # [0, w]
     y_norm = (h - y_coords).astype(float)     # [0, h], Y flipped (image top = high Y)
 
@@ -59,6 +68,9 @@ def load_from_fits(fits_path, num_points=-1, brightness_threshold=-1, z_scale=1.
     with fits.open(fits_path) as hdul:
         data = hdul[0].data.astype(float)
 
+    h, w = data.shape
+    total_pixels = w * h
+
     # Normalize data to [0, 1]
     data_min, data_max = np.nanmin(data), np.nanmax(data)
     if data_max > data_min:
@@ -75,18 +87,25 @@ def load_from_fits(fits_path, num_points=-1, brightness_threshold=-1, z_scale=1.
             y_coords, x_coords = np.where(bright_mask)
     else:
         # No filter - get all pixels
-        h, w = data.shape
         y_coords, x_coords = np.mgrid[0:h, 0:w]
         y_coords = y_coords.flatten()
         x_coords = x_coords.flatten()
+
+    filtered_count = len(x_coords)
 
     if num_points > 0 and len(x_coords) > num_points:
         indices = np.random.choice(len(x_coords), num_points, replace=False)
         x_coords = x_coords[indices]
         y_coords = y_coords[indices]
 
+    final_count = len(x_coords)
+
+    # Print info
+    print(f"[FITS] Size: {w}x{h}, Total pixels: {total_pixels}")
+    print(f"[Filter] brightness_threshold: {brightness_threshold}, num_points: {num_points}")
+    print(f"[Result] After filter: {filtered_count}, Final points: {final_count}")
+
     # Use actual pixel coordinates, origin at image (0,0)
-    h, w = data.shape
     x_norm = x_coords.astype(float)           # [0, w]
     y_norm = (h - y_coords).astype(float)     # [0, h], Y flipped
     # Use original brightness value (0-255) scaled by z_scale
@@ -105,7 +124,7 @@ class AstroViewer3D(InteractiveScene):
     # Configuration
     data_source = "../test-img/sdss.jpg"  # Can be .jpg, .png, or .fits
     num_points = -1  # -1 means no limit
-    brightness_threshold = 0.6  # -1 means no filter (show all pixels)
+    brightness_threshold = 0.01  # -1 means no filter (show all pixels)
     z_scale = 1.0  # Z axis scale factor, 1.0 = original brightness value (0-255)
 
     def construct(self):
@@ -259,14 +278,14 @@ class AstroViewer3D(InteractiveScene):
 class AstroViewerFITS(AstroViewer3D):
     """View FITS file data"""
     data_source = "../test-img/galaxies.fits"
-    num_points = 150
-    brightness_threshold = 0.8
+    num_points = -1
+    brightness_threshold = 0.7
 
 
 class AstroViewerSDSS(AstroViewer3D):
     """View SDSS image"""
     data_source = "../test-img/sdss.jpg"
-    num_points = 80
+    num_points = -1
     brightness_threshold = 0.5
 
 
