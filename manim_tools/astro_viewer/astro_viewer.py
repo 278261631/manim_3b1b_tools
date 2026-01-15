@@ -84,7 +84,7 @@ def load_from_fits(fits_path, num_points=50, brightness_threshold=0.7):
 
 class AstroViewer3D(InteractiveScene):
     # Configuration
-    data_source = "../test-img/apod1.jpg"  # Can be .jpg, .png, or .fits
+    data_source = "../test-img/sdss.jpg"  # Can be .jpg, .png, or .fits
     num_points = 100
     brightness_threshold = 0.6
     
@@ -112,7 +112,7 @@ class AstroViewer3D(InteractiveScene):
         y_label = Text("Y", color=GREEN, font_size=36).move_to([0, 5, 0])
         z_label = Text("Brightness", color=BLUE, font_size=28).move_to([0, 0, 5])
         
-        # Create tick marks
+        # Create tick marks and labels
         ticks = Group()
         tick_labels = VGroup()
         for i in range(-4, 5):
@@ -121,9 +121,24 @@ class AstroViewer3D(InteractiveScene):
             # X axis ticks
             x_tick = Line3D(start=np.array([i, -0.1, 0]), end=np.array([i, 0.1, 0]), color=RED)
             ticks.add(x_tick)
+            x_num = Text(str(i), font_size=20, color=RED)
+            x_num.move_to([i, -0.4, 0])
+            tick_labels.add(x_num)
+
             # Y axis ticks
             y_tick = Line3D(start=np.array([-0.1, i, 0]), end=np.array([0.1, i, 0]), color=GREEN)
             ticks.add(y_tick)
+            y_num = Text(str(i), font_size=20, color=GREEN)
+            y_num.move_to([-0.4, i, 0])
+            tick_labels.add(y_num)
+
+        # Z axis ticks (0-4 for brightness)
+        for i in range(1, 5):
+            z_tick = Line3D(start=np.array([-0.1, 0, i]), end=np.array([0.1, 0, i]), color=BLUE)
+            ticks.add(z_tick)
+            z_num = Text(str(i), font_size=20, color=BLUE)
+            z_num.move_to([-0.4, 0, i])
+            tick_labels.add(z_num)
         
         # Create 3D points from loaded data
         dots = Group()
@@ -147,7 +162,7 @@ class AstroViewer3D(InteractiveScene):
         # Add to scene
         self.add(x_axis, y_axis, z_axis)
         self.add(x_label, y_label, z_label)
-        self.add(ticks)
+        self.add(ticks, tick_labels)
         self.add(dots)
         self.add(info_text)
         
