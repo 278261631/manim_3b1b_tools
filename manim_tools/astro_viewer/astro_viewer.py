@@ -26,10 +26,10 @@ def load_from_image(image_path, num_points=50, brightness_threshold=0.7):
         x_coords = x_coords[indices]
         y_coords = y_coords[indices]
     
-    # Normalize coordinates to [-4, 4] range
+    # Normalize coordinates to [0, 8] range, origin at image (0,0)
     h, w = img_array.shape[:2]
-    x_norm = (x_coords / w - 0.5) * 8
-    y_norm = (0.5 - y_coords / h) * 8  # Flip Y axis
+    x_norm = (x_coords / w) * 8        # [0, 8]
+    y_norm = (1 - y_coords / h) * 8    # [0, 8], Y flipped (image top = high Y)
     
     # Use brightness as Z coordinate
     z_coords = np.array([brightness[y, x] * 4 for x, y in zip(x_coords, y_coords)])
@@ -67,10 +67,10 @@ def load_from_fits(fits_path, num_points=50, brightness_threshold=0.7):
         x_coords = x_coords[indices]
         y_coords = y_coords[indices]
     
-    # Normalize coordinates
+    # Normalize coordinates to [0, 8] range, origin at image (0,0)
     h, w = data.shape
-    x_norm = (x_coords / w - 0.5) * 8
-    y_norm = (0.5 - y_coords / h) * 8
+    x_norm = (x_coords / w) * 8        # [0, 8]
+    y_norm = (1 - y_coords / h) * 8    # [0, 8], Y flipped
     z_coords = np.array([data_norm[y, x] * 4 for x, y in zip(x_coords, y_coords)])
     
     # Color based on intensity (blue to white)
@@ -99,25 +99,23 @@ class AstroViewer3D(InteractiveScene):
                 self.data_source, self.num_points, self.brightness_threshold
             )
         
-        # Create axes
-        x_axis = Arrow(start=np.array([-4, 0, 0]), end=np.array([4.5, 0, 0]),
+        # Create axes (origin at 0,0,0 corresponding to image 0,0)
+        x_axis = Arrow(start=np.array([-0.5, 0, 0]), end=np.array([8.5, 0, 0]),
                        color=RED, stroke_width=4)
-        y_axis = Arrow(start=np.array([0, -4, 0]), end=np.array([0, 4.5, 0]),
+        y_axis = Arrow(start=np.array([0, -0.5, 0]), end=np.array([0, 8.5, 0]),
                        color=GREEN, stroke_width=4)
         z_axis = Arrow(start=np.array([0, 0, -0.5]), end=np.array([0, 0, 4.5]),
                        color=BLUE, stroke_width=4)
-        
+
         # Axis labels
-        x_label = Text("X", color=RED, font_size=36).move_to([5, 0, 0])
-        y_label = Text("Y", color=GREEN, font_size=36).move_to([0, 5, 0])
+        x_label = Text("X", color=RED, font_size=36).move_to([9, 0, 0])
+        y_label = Text("Y", color=GREEN, font_size=36).move_to([0, 9, 0])
         z_label = Text("Brightness", color=BLUE, font_size=28).move_to([0, 0, 5])
-        
+
         # Create tick marks and labels
         ticks = Group()
         tick_labels = VGroup()
-        for i in range(-4, 5):
-            if i == 0:
-                continue
+        for i in range(0, 9):
             # X axis ticks
             x_tick = Line3D(start=np.array([i, -0.1, 0]), end=np.array([i, 0.1, 0]), color=RED)
             ticks.add(x_tick)
