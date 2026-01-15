@@ -4,24 +4,33 @@ from PIL import Image
 import os
 
 # Data loader functions
-def load_from_image(image_path, num_points=50, brightness_threshold=0.7, z_scale=1.0):
-    """Extract bright points from an image as 3D coordinates"""
+def load_from_image(image_path, num_points=-1, brightness_threshold=-1, z_scale=1.0):
+    """Extract points from an image as 3D coordinates
+    num_points: -1 means no limit, otherwise randomly sample this many points
+    brightness_threshold: -1 means no filter, otherwise only include pixels above threshold
+    """
     img = Image.open(image_path).convert('RGB')
     img_array = np.array(img)
 
     # Calculate brightness (grayscale) - normalized for threshold comparison
     brightness = np.mean(img_array, axis=2) / 255.0
 
-    # Find bright pixels above threshold
-    bright_mask = brightness > brightness_threshold
-    y_coords, x_coords = np.where(bright_mask)
-
-    if len(x_coords) == 0:
-        # Lower threshold if no points found
-        bright_mask = brightness > 0.5
+    # Find pixels (with optional brightness filter)
+    if brightness_threshold >= 0:
+        bright_mask = brightness > brightness_threshold
         y_coords, x_coords = np.where(bright_mask)
+        if len(x_coords) == 0:
+            # Lower threshold if no points found
+            bright_mask = brightness > 0.5
+            y_coords, x_coords = np.where(bright_mask)
+    else:
+        # No filter - get all pixels
+        h, w = img_array.shape[:2]
+        y_coords, x_coords = np.mgrid[0:h, 0:w]
+        y_coords = y_coords.flatten()
+        x_coords = x_coords.flatten()
 
-    if len(x_coords) > num_points:
+    if num_points > 0 and len(x_coords) > num_points:
         indices = np.random.choice(len(x_coords), num_points, replace=False)
         x_coords = x_coords[indices]
         y_coords = y_coords[indices]
@@ -40,8 +49,11 @@ def load_from_image(image_path, num_points=50, brightness_threshold=0.7, z_scale
     return list(zip(x_norm, y_norm, z_coords, colors)), (w, h)
 
 
-def load_from_fits(fits_path, num_points=50, brightness_threshold=0.7, z_scale=1.0):
-    """Extract bright points from a FITS file as 3D coordinates"""
+def load_from_fits(fits_path, num_points=-1, brightness_threshold=-1, z_scale=1.0):
+    """Extract points from a FITS file as 3D coordinates
+    num_points: -1 means no limit, otherwise randomly sample this many points
+    brightness_threshold: -1 means no filter, otherwise only include pixels above threshold
+    """
     from astropy.io import fits
 
     with fits.open(fits_path) as hdul:
@@ -54,15 +66,21 @@ def load_from_fits(fits_path, num_points=50, brightness_threshold=0.7, z_scale=1
     else:
         data_norm = np.zeros_like(data)
 
-    # Find bright pixels
-    bright_mask = data_norm > brightness_threshold
-    y_coords, x_coords = np.where(bright_mask)
-
-    if len(x_coords) == 0:
-        bright_mask = data_norm > 0.5
+    # Find pixels (with optional brightness filter)
+    if brightness_threshold >= 0:
+        bright_mask = data_norm > brightness_threshold
         y_coords, x_coords = np.where(bright_mask)
+        if len(x_coords) == 0:
+            bright_mask = data_norm > 0.5
+            y_coords, x_coords = np.where(bright_mask)
+    else:
+        # No filter - get all pixels
+        h, w = data.shape
+        y_coords, x_coords = np.mgrid[0:h, 0:w]
+        y_coords = y_coords.flatten()
+        x_coords = x_coords.flatten()
 
-    if len(x_coords) > num_points:
+    if num_points > 0 and len(x_coords) > num_points:
         indices = np.random.choice(len(x_coords), num_points, replace=False)
         x_coords = x_coords[indices]
         y_coords = y_coords[indices]
@@ -86,8 +104,8 @@ def load_from_fits(fits_path, num_points=50, brightness_threshold=0.7, z_scale=1
 class AstroViewer3D(InteractiveScene):
     # Configuration
     data_source = "../test-img/sdss.jpg"  # Can be .jpg, .png, or .fits
-    num_points = 100
-    brightness_threshold = 0.6
+    num_points = -1  # -1 means no limit
+    brightness_threshold = -1  # -1 means no filter (show all pixels)
     z_scale = 1.0  # Z axis scale factor, 1.0 = original brightness value (0-255)
 
     def construct(self):
