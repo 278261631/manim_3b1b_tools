@@ -146,7 +146,13 @@ class AstroViewer3D(InteractiveScene):
             rgb_color = rgb_to_color(color[:3]) if len(color) >= 3 else WHITE
             dot = Sphere(radius=0.08, color=rgb_color)
             dot.move_to([x, y, z])
+            # Store coordinates as custom attribute for click detection
+            dot.point_coords = (x, y, z)
             dots.add(dot)
+
+        # Store dots reference for click handler
+        self.dots = dots
+        self.points_data = points_data
         
         # Info text
         source_name = os.path.basename(self.data_source)
@@ -167,6 +173,30 @@ class AstroViewer3D(InteractiveScene):
         self.add(info_text)
         
         self.wait()
+
+    def on_mouse_press(self, point, button, mods):
+        """Handle mouse click to detect point selection"""
+        super().on_mouse_press(point, button, mods)
+
+        # Get mouse position in world coordinates
+        mouse_point = self.mouse_point.get_center()
+
+        # Find closest point to click
+        min_dist = float('inf')
+        closest_dot = None
+
+        for dot in self.dots:
+            dot_center = dot.get_center()
+            dist = np.sqrt((mouse_point[0] - dot_center[0])**2 +
+                          (mouse_point[1] - dot_center[1])**2)
+            if dist < min_dist:
+                min_dist = dist
+                closest_dot = dot
+
+        # Print nearest point coordinates
+        if closest_dot is not None:
+            coords = closest_dot.point_coords
+            print(f"[Point] X: {coords[0]:.3f}, Y: {coords[1]:.3f}, Z: {coords[2]:.3f} (dist: {min_dist:.2f})")
 
 
 class AstroViewerFITS(AstroViewer3D):
