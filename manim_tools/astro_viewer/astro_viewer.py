@@ -105,7 +105,7 @@ class AstroViewer3D(InteractiveScene):
     # Configuration
     data_source = "../test-img/sdss.jpg"  # Can be .jpg, .png, or .fits
     num_points = -1  # -1 means no limit
-    brightness_threshold = -1  # -1 means no filter (show all pixels)
+    brightness_threshold = 0.6  # -1 means no filter (show all pixels)
     z_scale = 1.0  # Z axis scale factor, 1.0 = original brightness value (0-255)
 
     def construct(self):
