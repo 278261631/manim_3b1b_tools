@@ -172,6 +172,10 @@ class AstroViewer3D(InteractiveScene):
         self.add(dots)
         self.add(info_text)
         
+        # Store selected dot for highlight effect
+        self.selected_dot = None
+        self.highlight_ring = None
+
         self.wait()
 
     def on_mouse_press(self, point, button, mods):
@@ -193,10 +197,31 @@ class AstroViewer3D(InteractiveScene):
                 min_dist = dist
                 closest_dot = dot
 
-        # Print nearest point coordinates
+        # Print nearest point coordinates and add glow effect
         if closest_dot is not None:
             coords = closest_dot.point_coords
             print(f"[Point] X: {coords[0]:.3f}, Y: {coords[1]:.3f}, Z: {coords[2]:.3f} (dist: {min_dist:.2f})")
+
+            # Remove previous highlight
+            if self.highlight_ring is not None:
+                self.remove(self.highlight_ring)
+
+            # Create glow effect - multiple rings
+            self.highlight_ring = Group()
+            center = closest_dot.get_center()
+            for i, r in enumerate([0.15, 0.22, 0.30]):
+                ring = Circle(radius=r, color=YELLOW, stroke_width=3-i)
+                ring.set_stroke(opacity=0.8-i*0.2)
+                ring.move_to(center)
+                self.highlight_ring.add(ring)
+
+            # Add outer glow sphere
+            glow = Sphere(radius=0.18, color=YELLOW)
+            glow.set_opacity(0.3)
+            glow.move_to(center)
+            self.highlight_ring.add(glow)
+
+            self.add(self.highlight_ring)
 
 
 class AstroViewerFITS(AstroViewer3D):
