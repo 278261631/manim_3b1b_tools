@@ -2,6 +2,51 @@ from manimlib import *
 import numpy as np
 from PIL import Image
 import os
+from scipy.spatial import cKDTree  # For fast nearest neighbor search
+
+
+def apply_lod(points_data, max_points=20000):
+    """Apply Level of Detail (LOD) - reduce points for performance
+
+    Automatically reduces point count if it exceeds max_points.
+    Uses random sampling to preserve spatial distribution.
+
+    Args:
+        points_data: list of (x, y, z, color) tuples
+        max_points: target point count after LOD (default 20000)
+
+    Returns:
+        filtered points_data
+    """
+    if len(points_data) <= max_points:
+        return points_data
+
+    # Calculate reduction ratio
+    reduction_ratio = max_points / len(points_data)
+
+    # Randomly sample points (preserves distribution)
+    indices = np.random.choice(len(points_data), max_points, replace=False)
+    lod_data = [points_data[i] for i in indices]
+
+    print(f"[LOD] Applied: {len(points_data)} → {len(lod_data)} points (ratio: {reduction_ratio:.1%})")
+    return lod_data
+
+
+
+def build_point_tree(points_data):
+    """Build KD-Tree for fast nearest neighbor search
+
+    Args:
+        points_data: list of (x, y, z, color) tuples
+
+    Returns:
+        cKDTree object and coordinates array
+    """
+    coords = np.array([(p[0], p[1], p[2]) for p in points_data])
+    tree = cKDTree(coords)
+    return tree, coords
+
+
 
 # Data loader functions
 def load_from_image(image_path, num_points=-1, brightness_threshold=-1, z_scale=1.0):
@@ -126,6 +171,7 @@ class AstroViewer3D(InteractiveScene):
     num_points = -1  # -1 means no limit
     brightness_threshold = 0.01  # -1 means no filter (show all pixels)
     z_scale = 1.0  # Z axis scale factor, 1.0 = original brightness value (0-255)
+    lod_max_points = 20000  # Max points to display (LOD limit for performance) - increased for better quality
 
     def construct(self):
         # Load data based on file type
@@ -137,6 +183,9 @@ class AstroViewer3D(InteractiveScene):
             points_data, (img_w, img_h) = load_from_image(
                 self.data_source, self.num_points, self.brightness_threshold, self.z_scale
             )
+
+        # Apply LOD to reduce points count for better performance
+        points_data = apply_lod(points_data, max_points=self.lod_max_points)
 
         # Calculate max Z value for axis
         max_z = 255 * self.z_scale
@@ -190,7 +239,13 @@ class AstroViewer3D(InteractiveScene):
         # Create 3D points from loaded data
         dot_radius = max(img_w, img_h) * 0.005  # Dot size proportional to image
         dots = Group()
-        for x, y, z, color in points_data:
+
+        # Batch create dots with progress tracking
+        print(f"[Creating] {len(points_data)} point objects...")
+        for idx, (x, y, z, color) in enumerate(points_data):
+            if idx % 2000 == 0 and idx > 0:
+                print(f"  Created {idx}/{len(points_data)} dots...")
+
             rgb_color = rgb_to_color(color[:3]) if len(color) >= 3 else WHITE
             # Use Dot instead of Sphere for better performance
             dot = Dot(radius=dot_radius, color=rgb_color)
@@ -199,10 +254,15 @@ class AstroViewer3D(InteractiveScene):
             dot.point_coords = (x, y, z)
             dots.add(dot)
 
+        print(f"[Done] All {len(points_data)} dots created successfully")
+
         # Store dots reference for click handler
         self.dots = dots
         self.points_data = points_data
         self.img_size = (img_w, img_h)
+
+        # Build KD-Tree for fast nearest neighbor search in mouse interactions
+        self.point_tree, self.coords = build_point_tree(points_data)
 
         # Set camera to view the entire image
         frame = self.camera.frame
@@ -219,7 +279,9 @@ class AstroViewer3D(InteractiveScene):
         # Print info to console instead of displaying on screen
         source_name = os.path.basename(self.data_source)
         print(f"[Info] Source: {source_name} | Size: {img_w}x{img_h} | Points: {len(points_data)}")
-        
+        print(f"[Performance] Dot-based rendering | LOD enabled (max {self.lod_max_points} points)")
+        print(f"[Controls] Click to select points | 'd' drag | 'f' reset | 'z' zoom | 'q' quit")
+
         # Store selected dot for highlight effect
         self.selected_dot = None
         self.highlight_ring = None
@@ -227,31 +289,27 @@ class AstroViewer3D(InteractiveScene):
         self.wait()
 
     def on_mouse_press(self, point, button, mods):
-        """Handle mouse click to detect point selection"""
+        """Handle mouse click to detect point selection using KD-Tree"""
         super().on_mouse_press(point, button, mods)
 
         # Get mouse position in world coordinates
         mouse_point = self.mouse_point.get_center()
 
-        # Get camera frame for proper 3D picking
-        frame = self.camera.frame
+        # Use KD-Tree for O(log n) nearest neighbor search instead of O(n)
+        query_point = np.array([mouse_point[0], mouse_point[1], mouse_point[2]])
+        dist, idx = self.point_tree.query(query_point)
 
-        # Find closest point using camera-relative distance
-        min_dist = float('inf')
+        # Find the actual dot object that corresponds to this index
         closest_dot = None
-
-        for dot in self.dots:
-            dot_center = dot.get_center()
-            # Use full 3D distance
-            dist = np.linalg.norm(mouse_point - dot_center)
-            if dist < min_dist:
-                min_dist = dist
+        for i, dot in enumerate(self.dots):
+            if i == idx:
                 closest_dot = dot
+                break
 
         # Print nearest point coordinates and add glow effect
         if closest_dot is not None:
             coords = closest_dot.point_coords
-            print(f"[Point] X: {coords[0]:.1f}, Y: {coords[1]:.1f}, Z: {coords[2]:.3f} (dist: {min_dist:.2f})")
+            print(f"[Point] X: {coords[0]:.1f}, Y: {coords[1]:.1f}, Z: {coords[2]:.3f} (dist: {dist:.2f})")
 
             # Remove previous highlight
             if self.highlight_ring is not None:
@@ -281,13 +339,15 @@ class AstroViewerFITS(AstroViewer3D):
     data_source = "../test-img/galaxies.fits"
     num_points = -1
     brightness_threshold = 0.8
+    lod_max_points = 30000
 
 
 class AstroViewerSDSS(AstroViewer3D):
     """View SDSS image"""
     data_source = "../test-img/sdss.jpg"
     num_points = -1
-    brightness_threshold = 0.1
+    brightness_threshold = -1
+    lod_max_points = 20000  # Optimized for cloud rendering
 
 
 class AstroViewerM44(AstroViewer3D):
@@ -295,4 +355,5 @@ class AstroViewerM44(AstroViewer3D):
     data_source = "../test-img/m44-1975-01-18.jpg"
     num_points = 100
     brightness_threshold = 0.7
+    lod_max_points = 15000
 
