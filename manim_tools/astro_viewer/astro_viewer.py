@@ -192,7 +192,8 @@ class AstroViewer3D(InteractiveScene):
         dots = Group()
         for x, y, z, color in points_data:
             rgb_color = rgb_to_color(color[:3]) if len(color) >= 3 else WHITE
-            dot = Sphere(radius=dot_radius, color=rgb_color)
+            # Use Dot instead of Sphere for better performance
+            dot = Dot(radius=dot_radius, color=rgb_color)
             dot.move_to([x, y, z])
             # Store coordinates as custom attribute for click detection
             dot.point_coords = (x, y, z)
@@ -286,7 +287,7 @@ class AstroViewerSDSS(AstroViewer3D):
     """View SDSS image"""
     data_source = "../test-img/sdss.jpg"
     num_points = -1
-    brightness_threshold = 0.8
+    brightness_threshold = 0.1
 
 
 class AstroViewerM44(AstroViewer3D):
