@@ -1,0 +1,14 @@
+# GOOD/BAD Target List Export
+# Label: BAD
+# Export Time: 20260129_134544
+# Total Records: 6
+#===============================================================================
+# Format: index file_dir aligned_filename template_aligned_filename fits_center_ra fits_center_dec time pixel_x pixel_y ra dec
+#===============================================================================
+
+0001 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.246742 17.249670 20250628_193509 1919 3467 285.113602 18.293136
+0002 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.246742 17.249670 20250628_193509 1948 3468 285.092322 18.293963
+0003 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.246742 17.249670 20250628_193509 2284 1311 284.838260 16.791698
+0004 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.246742 17.249670 20250628_193509 2884 2217 284.402980 17.424819
+0005 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.246742 17.249670 20250628_193509 2068 983 284.994205 16.562315
+0006 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_193509_-14.9C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.246742 17.249670 20250628_193509 2083 1004 284.983382 16.577008

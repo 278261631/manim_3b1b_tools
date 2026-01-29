@@ -1,0 +1,12 @@
+# GOOD/BAD Target List Export
+# Label: BAD
+# Export Time: 20260129_134544
+# Total Records: 4
+#===============================================================================
+# Format: index file_dir aligned_filename template_aligned_filename fits_center_ra fits_center_dec time pixel_x pixel_y ra dec
+#===============================================================================
+
+0001 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_191828_-14.9C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_191828_-14.9C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.253074 17.268718 20250628_191828 735 501 285.959390 16.219366
+0002 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_191828_-14.9C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_191828_-14.9C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.253074 17.268718 20250628_191828 1949 3468 285.091589 18.293967
+0003 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_191828_-14.9C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_191828_-14.9C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.253074 17.268718 20250628_191828 1919 3467 285.113602 18.293136
+0004 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_191828_-14.9C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_191828_-14.9C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.253074 17.268718 20250628_191828 740 3469 285.978564 18.287249

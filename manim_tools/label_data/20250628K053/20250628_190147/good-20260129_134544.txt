@@ -1,0 +1,10 @@
+# GOOD/BAD Target List Export
+# Label: GOOD
+# Export Time: 20260129_134544
+# Total Records: 2
+#===============================================================================
+# Format: index file_dir aligned_filename template_aligned_filename fits_center_ra fits_center_dec time pixel_x pixel_y ra dec
+#===============================================================================
+
+0001 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_190147_-15C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_190147_-15C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.261395 17.235509 20250628_190147 5461 3462 282.513455 18.288104
+0002 E:\fix_data\diff_temp\GY5\20250628\K053\GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_190147_-15C_ GY5_K053-1_No%20Filter_60S_Bin2_UTC20250628_190147_-15C__noise_cleaned_aligned.fits K053-1_noise_cleaned_aligned.fits 284.261395 17.235509 20250628_190147 1070 2854 285.732338 17.861193

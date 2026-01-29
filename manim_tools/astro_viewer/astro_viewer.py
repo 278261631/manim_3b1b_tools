@@ -2,7 +2,11 @@ from manimlib import *
 import numpy as np
 from PIL import Image
 import os
+import sys
 from scipy.spatial import cKDTree  # For fast nearest neighbor search
+
+sys.path.append(os.path.dirname(__file__))
+from label_utils import find_label_dirs, parse_label_file, resolve_data_path
 
 
 def apply_lod(points_data, max_points=20000):
@@ -163,6 +167,134 @@ def load_from_fits(fits_path, num_points=-1, brightness_threshold=-1, z_scale=1.
         colors.append([intensity, intensity, 1.0])  # Blue to white
 
     return list(zip(x_norm, y_norm, z_coords, colors)), (w, h)
+
+
+
+
+class LabelDataViewer(InteractiveScene):
+    """Load label_data and visualize good/bad points on aligned images."""
+
+    label_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "label_data"))
+    good_color = GREEN
+    bad_color = RED
+    data_root_override = None
+    num_points = -1
+    brightness_threshold = -1
+    z_scale = 1.0
+    lod_max_points = 2000
+    template_opacity = 0.5
+
+    def construct(self):
+        if not os.path.isdir(self.label_root):
+            print(f"[Error] label_data not found: {self.label_root}")
+            self.wait()
+            return
+
+        label_dirs = find_label_dirs(self.label_root)
+        if not label_dirs:
+            print(f"[Error] No label files found under: {self.label_root}")
+            self.wait()
+            return
+        selected_dir = label_dirs[0]
+        print(f"[LabelData] 默认选择目录: {selected_dir}")
+
+        good_files = [f for f in os.listdir(selected_dir) if f.startswith("good-") and f.endswith(".txt")]
+        bad_files = [f for f in os.listdir(selected_dir) if f.startswith("bad-") and f.endswith(".txt")]
+        if not good_files and not bad_files:
+            print("[Error] 未找到 good/bad 文件")
+            self.wait()
+            return
+
+        good_path = os.path.join(selected_dir, good_files[0]) if good_files else None
+        bad_path = os.path.join(selected_dir, bad_files[0]) if bad_files else None
+
+        file_dir = None
+        aligned_filename = None
+        template_aligned_filename = None
+        good_points = []
+        bad_points = []
+
+        if good_path:
+            file_dir, aligned_filename, template_aligned_filename, good_points = parse_label_file(good_path)
+        if bad_path:
+            file_dir, aligned_filename, template_aligned_filename, bad_points = parse_label_file(bad_path)
+
+        if not file_dir:
+            print("[Error] 标签文件缺少路径或文件名")
+            self.wait()
+            return
+
+        data_root_override = self.data_root_override or os.environ.get("MANIM_LABEL_DATA_ROOT")
+        print(f"[LabelData] file_dir: {file_dir}")
+        if data_root_override:
+            print(f"[LabelData] data_root_override: {data_root_override}")
+
+        data_dir = resolve_data_path(file_dir, "", data_root_override)
+        if not data_dir or not os.path.isdir(data_dir):
+            data_dir = file_dir
+
+        aligned_path = resolve_data_path(file_dir, aligned_filename, data_root_override)
+        template_path = resolve_data_path(file_dir, template_aligned_filename, data_root_override)
+        if not aligned_path or not os.path.exists(aligned_path):
+            print(f"[Error] aligned 文件不存在: {aligned_path}")
+            self.wait()
+            return
+        if not template_path or not os.path.exists(template_path):
+            print(f"[Error] template 文件不存在: {template_path}")
+            self.wait()
+            return
+
+        fits_paths = [aligned_path, template_path]
+
+        all_groups = Group()
+        img_w = img_h = None
+        max_z = 255 * self.z_scale
+
+        for idx, fits_path in enumerate(fits_paths):
+            print(f"[LabelData] 使用FITS[{idx}]: {fits_path}")
+            points_data, (cur_w, cur_h) = load_from_fits(
+                fits_path, self.num_points, self.brightness_threshold, self.z_scale
+            )
+            points_data = apply_lod(points_data, max_points=self.lod_max_points)
+            if img_w is None:
+                img_w, img_h = cur_w, cur_h
+
+            dot_radius = max(cur_w, cur_h) * 0.005
+            dots = Group()
+            print(f"[LabelData] 创建点云: {len(points_data)} points")
+            for p_idx, (x, y, z, color) in enumerate(points_data):
+                if p_idx % 2000 == 0 and p_idx > 0:
+                    print(f"  Created {p_idx}/{len(points_data)} dots...")
+                rgb_color = rgb_to_color(color[:3]) if len(color) >= 3 else WHITE
+                dot = Dot(radius=dot_radius, color=rgb_color)
+                if idx == 1:
+                    dot.set_opacity(self.template_opacity)
+                dot.move_to([x, y, z])
+                dots.add(dot)
+
+            all_groups.add(dots)
+
+        if img_w is None or img_h is None:
+            print("[Error] 无法加载fits图像")
+            self.wait()
+            return
+
+        label_z = max_z * 1.05
+        label_radius = max(img_w, img_h) * 0.01
+        for px, py in good_points:
+            pos = np.array([px, img_h - py, label_z])
+            all_groups.add(Dot(pos, radius=label_radius, color=self.good_color))
+        for px, py in bad_points:
+            pos = np.array([px, img_h - py, label_z])
+            all_groups.add(Dot(pos, radius=label_radius, color=self.bad_color))
+
+        frame = self.camera.frame
+        frame.set_euler_angles(theta=45 * DEGREES, phi=70 * DEGREES)
+        frame.move_to([img_w / 2, img_h / 2, 0])
+        frame.set_height(max(img_w, img_h) * 1.5)
+
+        self.add(all_groups)
+        self.wait()
 
 
 class AstroViewer3D(InteractiveScene):
@@ -338,8 +470,8 @@ class AstroViewerFITS(AstroViewer3D):
     """View FITS file data"""
     data_source = "../test-img/galaxies.fits"
     num_points = -1
-    brightness_threshold = 0.8
-    lod_max_points = 30000
+    brightness_threshold = -1
+    lod_max_points = 3000
 
 
 class AstroViewerSDSS(AstroViewer3D):
